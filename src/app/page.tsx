@@ -3,18 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 
 export default function Home() {
-  const canvasRef = useRef(null);
-  const chartRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<Chart<any, any, any> | null>(null);
   const [modo, setModo] = useState('macd');
   const [periodo, setPeriodo] = useState(2);
   const [atrMin, setAtrMin] = useState(10);
   const [lucro, setLucro] = useState('Carregando dados...');
   const [invertido, setInvertido] = useState(false);
 
-  const calcularEMA = (array, periodo) => {
+  const calcularEMA = (array: any[], periodo: number) => {
     const k = 2 / (periodo + 1);
     const emaArray = [];
-    let ema = array.slice(0, periodo).reduce((a, b) => a + b) / periodo;
+    let ema = array.slice(0, periodo).reduce((a: any, b: any) => a + b) / periodo;
     emaArray[periodo - 1] = ema;
     for (let i = periodo; i < array.length; i++) {
       ema = array[i] * k + ema * (1 - k);
@@ -23,7 +23,7 @@ export default function Home() {
     return emaArray;
   };
 
-  const calcularSMA = (array, periodo) => {
+  const calcularSMA = (array: string | any[], periodo: number) => {
     const sma = [];
     for (let i = periodo - 1; i < array.length; i++) {
       let soma = 0;
@@ -35,7 +35,7 @@ export default function Home() {
     return sma;
   };
 
-  const calcularATR = (highs, lows, closes, periodo = 14) => {
+  const calcularATR = (highs: number[], lows: number[], closes: string | any[], periodo = 14) => {
     const trs = [0];
     for (let i = 1; i < closes.length; i++) {
       const tr = Math.max(
@@ -48,10 +48,10 @@ export default function Home() {
     return calcularEMA(trs, periodo);
   };
 
-  const calcularMACD = (closes) => {
+  const calcularMACD = (closes: any[]) => {
     const ema12 = calcularEMA(closes, 12);
     const ema26 = calcularEMA(closes, 26);
-    const macd = closes.map((_, i) =>
+    const macd = closes.map((_: any, i: number) =>
       ema12[i] !== undefined && ema26[i] !== undefined ? ema12[i] - ema26[i] : undefined
     );
     const linhaSinal = calcularEMA(macd.filter(Boolean), 9);
@@ -60,7 +60,7 @@ export default function Home() {
     return { macd, sinal };
   };
 
-  const gerarSinais = (closes, sma, macd, sinal, atr) => {
+  const gerarSinais = (closes: string | any[], sma: number[], macd: number[], sinal: any[], atr: number[]) => {
     const sinais = [];
     for (let i = 1; i < closes.length; i++) {
       if (modo === 'macd') {
@@ -91,7 +91,7 @@ export default function Home() {
     return sinais;
   };
 
-  const calcularLucro = (sinais, closes, labels) => {
+  const calcularLucro = (sinais: string | any[], closes: number[], labels: any) => {
     let lucro = 0;
     let precoCompra = null;
     let texto = '';
@@ -111,70 +111,77 @@ export default function Home() {
     setLucro(texto);
   };
 
-  const desenharGrafico = (labels, closes, sma, sinais) => {
+  const desenharGrafico = (labels: any[], closes: { [x: string]: any; }, sma: number[], sinais: any[]) => {
     if (chartRef.current) chartRef.current.destroy();
 
-    const sinaisPoints = sinais.map((s, i) => s && {
-      x: i,
-      y: closes[i],
-      color: s === 'buy' ? 'green' : 'red',
-      shape: s === 'buy' ? 'triangle' : 'rect'
-    }).filter(Boolean);
+    const sinaisPoints = sinais
+      .map((s: string, i: number) =>
+        s
+          ? {
+              x: i,
+              y: closes[i],
+              color: s === 'buy' ? 'green' : 'red',
+              shape: s === 'buy' ? 'triangle' : 'rect'
+            }
+          : null
+      )
+      .filter((p): p is { x: number; y: number; color: string; shape: string } => p !== null);
 
-    chartRef.current = new Chart(canvasRef.current, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Preço BTC/USDT',
-            data: closes,
-            borderColor: '#00bcd4',
-            tension: 0.3,
-          },
-          {
-            label: `Média Móvel (${periodo})`,
-            data: sma,
-            borderColor: '#ffaa00',
-            tension: 0.3,
-          },
-          ...sinaisPoints.map(p => ({
-            label: p.shape === 'triangle' ? 'Compra' : 'Venda',
-            data: [{ x: labels[p.x], y: p.y }],
-            pointStyle: p.shape,
-            borderColor: p.color,
-            backgroundColor: p.color,
-            pointRadius: 7,
-            type: 'line',
-            showLine: false
-          }))
-        ]
-      },
-      options: {
-        plugins: {
-          legend: { labels: { color: 'white' } }
+    if (canvasRef.current) {
+      chartRef.current = new Chart(canvasRef.current, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Preço BTC/USDT',
+              data: closes,
+              borderColor: '#00bcd4',
+              tension: 0.3,
+            },
+            {
+              label: `Média Móvel (${periodo})`,
+              data: sma,
+              borderColor: '#ffaa00',
+              tension: 0.3,
+            },
+            ...sinaisPoints.map((p) => ({
+              label: p.shape === 'triangle' ? 'Compra' : 'Venda',
+              data: [{ x: labels[p.x], y: p.y }],
+              pointStyle: p.shape,
+              borderColor: p.color,
+              backgroundColor: p.color,
+              pointRadius: 7,
+              showLine: false
+            }))
+          ]
         },
-        scales: {
-          x: { ticks: { color: 'white' }, grid: { color: '#333' } },
-          y: { ticks: { color: 'white' }, grid: { color: '#333' } }
+        options: {
+          plugins: {
+            legend: { labels: { color: 'white' } }
+          },
+          scales: {
+            x: { ticks: { color: 'white' }, grid: { color: '#333' } },
+            y: { ticks: { color: 'white' }, grid: { color: '#333' } }
+          }
         }
-      }
-    });
+      });
+    }
   };
 
   useEffect(() => {
     const fetchData = async () => {
       const res = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=365');
       const data = await res.json();
-      const labels = data.map(d => new Date(d[0]).toLocaleDateString('pt-BR'));
-      const closes = data.map(d => parseFloat(d[4]));
-      const highs = data.map(d => parseFloat(d[2]));
-      const lows = data.map(d => parseFloat(d[3]));
+      const labels = data.map((d: (string | number | Date)[]) => new Date(d[0]).toLocaleDateString('pt-BR'));
+      const closes = data.map((d: string[]) => parseFloat(d[4]));
+      const highs = data.map((d: string[]) => parseFloat(d[2]));
+      const lows = data.map((d: string[]) => parseFloat(d[3]));
 
       const sma = calcularSMA(closes, periodo);
       const atr = calcularATR(highs, lows, closes);
       const { macd, sinal } = calcularMACD(closes);
-      const sinais = gerarSinais(closes, sma, macd, sinal, atr);
+      const sinais = gerarSinais(closes, sma, macd.map(v => v ?? 0), sinal, atr);
 
       desenharGrafico(labels, closes, sma, sinais);
       calcularLucro(sinais, closes, labels);
